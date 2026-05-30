@@ -117,9 +117,27 @@ export default function Friday() {
   const greetedRef = useRef(false);
   const speakRef = useRef<((text: string, options?: SpeakOptions) => void) | null>(null);
 
-  // Pick best-quality female English voice, then greet on first load
+  // Briefing runs independently of TTS — always fires 2s after mount
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      runBriefingRef.current?.();
+    }, 2000);
+    return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pick best-quality female English voice + speak greeting on first TTS ready
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    const greet = () => {
+      if (greetedRef.current) return;
+      greetedRef.current = true;
+      window.setTimeout(() => {
+        speakRef.current?.("Hello, boss. All systems online. How can I help?", { resumeV2v: false });
+      }, 400);
+    };
+
     const pickVoice = () => {
       const list = window.speechSynthesis.getVoices();
       if (list.length === 0) return;
@@ -128,19 +146,22 @@ export default function Friday() {
       const best = scoreVoices(list);
       ttsVoiceRef.current = best ?? list[0] ?? null;
       setVoiceName(ttsVoiceRef.current?.name ?? "");
-
-      if (!greetedRef.current && ttsVoiceRef.current) {
-        greetedRef.current = true;
-        window.setTimeout(() => {
-          // Speak greeting immediately
-          speakRef.current?.("Hello, boss. All systems online. How can I help?", { resumeV2v: false });
-          // Fetch briefing in parallel — will speak right after greeting ends
-          runBriefingRef.current?.();
-        }, 600);
-      }
+      greet();
     };
+
     pickVoice();
     window.speechSynthesis.onvoiceschanged = pickVoice;
+
+    // Mobile fallback: voices may never fire onvoiceschanged — try on first user interaction
+    const onInteraction = () => {
+      window.removeEventListener("pointerdown", onInteraction);
+      window.removeEventListener("keydown", onInteraction);
+      pickVoice();
+      // Resume suspended AudioContext if needed
+      window.speechSynthesis.resume();
+    };
+    window.addEventListener("pointerdown", onInteraction, { once: true });
+    window.addEventListener("keydown", onInteraction, { once: true });
   }, []);
 
   const selectVoice = (name: string) => {
@@ -483,15 +504,16 @@ export default function Friday() {
   useEffect(() => { sendRef.current = send; }, [send]);
   useEffect(() => { speakRef.current = speak; }, [speak]);
 
-  // Auto-briefing: weather + Iran-US-Israel news — runs in background, never blocks user
+  // Auto-briefing: weather + Iran-US-Israel news — runs independently, never blocks user
   const runAutoBriefing = useCallback(async () => {
     if (briefingDoneRef.current) return;
     briefingDoneRef.current = true;
 
-    const t0 = Date.now();
+    setBriefingText("···");  // show card immediately so user knows it's loading
 
+    const t0 = Date.now();
     const BRIEFING_PROMPT =
-      "Daily briefing boss: (1) current weather in Gaya, Bihar, India — temperature and conditions in one sentence. (2) latest critical developments in the Iran-US-Israel conflict as of today — two sentences max. No padding, straight to the point.";
+      "Use web_search to get: (1) current weather in Gaya Bihar India — temperature and sky conditions, one sentence. (2) latest news on Iran Israel US conflict as of today — two sentences. Reply with just those facts, no intro.";
 
     let assistantText = "";
     let buffer = "";
@@ -500,10 +522,16 @@ export default function Friday() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: BRIEFING_PROMPT }], selectedDb: "auto" }),
+        body: JSON.stringify({
+          messages: [{ role: "user", content: BRIEFING_PROMPT }],
+          selectedDb: "auto",
+        }),
       });
 
-      if (!res.ok || !res.body) return;
+      if (!res.ok || !res.body) {
+        setBriefingText("Briefing unavailable.");
+        return;
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -526,16 +554,20 @@ export default function Friday() {
         }
       }
 
-      // Wait for greeting to finish before speaking (greeting ~3.5s, we start at 600ms → 4.5s total)
+      if (!assistantText.trim()) {
+        setBriefingText("Briefing unavailable.");
+        return;
+      }
+
+      // Wait for greeting to finish before speaking
+      // Greeting starts at ~400ms from TTS ready, lasts ~4s → total ~4.5s from mount
+      // Briefing starts at 2s from mount, so wait max(0, 4500 - elapsed) more ms
       const remaining = 4500 - (Date.now() - t0);
       if (remaining > 0) await new Promise<void>((r) => window.setTimeout(r, remaining));
 
-      // Speak only if user hasn't already taken over the conversation
-      if (assistantText.trim() && !sendingRef.current) {
-        speak(assistantText, { resumeV2v: false });
-      }
+      if (!sendingRef.current) speak(assistantText, { resumeV2v: false });
     } catch {
-      // Briefing is non-critical — silent fail
+      setBriefingText("Briefing unavailable.");
     }
   }, [speak]);
 
