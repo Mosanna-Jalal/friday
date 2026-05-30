@@ -250,6 +250,47 @@ body::before {
 .msg-assistant {
   border-left-color: var(--accent);
 }
+/* ── Daily Briefing Card ────────────────────────────────── */
+.briefing-card {
+  width: min(720px, 95vw);
+  border: 1px solid rgba(0, 255, 170, 0.25);
+  background: rgba(0, 255, 170, 0.03);
+  padding: 0.6rem 0.9rem;
+  flex-shrink: 0;
+  animation: slide-in 250ms ease-out;
+}
+.briefing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.briefing-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  color: var(--speaking);
+  opacity: 0.8;
+}
+.briefing-close {
+  background: transparent;
+  border: none;
+  color: rgba(0, 255, 170, 0.4);
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.briefing-close:hover { color: var(--speaking); }
+.briefing-body {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(207, 233, 255, 0.8);
+  white-space: pre-wrap;
+}
+@media (max-width: 600px) {
+  .briefing-card { width: 100%; }
+}
 
 .msg-label {
   font-size: 0.65rem;

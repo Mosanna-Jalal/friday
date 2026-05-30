@@ -50,6 +50,7 @@ export default function Friday() {
   const [voiceName, setVoiceName] = useState<string>("");
   const [selectedDb, setSelectedDb] = useState<string>("auto");
   const [currentUser, setCurrentUser] = useState<{ displayName: string; role: string } | null>(null);
+  const [briefingText, setBriefingText] = useState<string>("");
 
   // Recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -72,6 +73,8 @@ export default function Friday() {
   const conversationRef = useRef<HTMLDivElement | null>(null);
   // sendRef lets recorder.onstop call send without stale closure
   const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  const briefingDoneRef = useRef(false);
+  const runBriefingRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { voiceEnabledRef.current = voiceEnabled; }, [voiceEnabled]);
@@ -111,7 +114,10 @@ export default function Friday() {
     });
   }, [messages]);
 
-  // Pick best-quality female English voice
+  const greetedRef = useRef(false);
+  const speakRef = useRef<((text: string, options?: SpeakOptions) => void) | null>(null);
+
+  // Pick best-quality female English voice, then greet on first load
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const pickVoice = () => {
@@ -122,6 +128,16 @@ export default function Friday() {
       const best = scoreVoices(list);
       ttsVoiceRef.current = best ?? list[0] ?? null;
       setVoiceName(ttsVoiceRef.current?.name ?? "");
+
+      if (!greetedRef.current && ttsVoiceRef.current) {
+        greetedRef.current = true;
+        window.setTimeout(() => {
+          // Speak greeting immediately
+          speakRef.current?.("Hello, boss. All systems online. How can I help?", { resumeV2v: false });
+          // Fetch briefing in parallel — will speak right after greeting ends
+          runBriefingRef.current?.();
+        }, 600);
+      }
     };
     pickVoice();
     window.speechSynthesis.onvoiceschanged = pickVoice;
@@ -463,8 +479,67 @@ export default function Friday() {
     [speak, startListening],
   );
 
-  // Keep sendRef in sync so recorder.onstop can always call the latest send
+  // Keep refs in sync so closures always call the latest versions
   useEffect(() => { sendRef.current = send; }, [send]);
+  useEffect(() => { speakRef.current = speak; }, [speak]);
+
+  // Auto-briefing: weather + Iran-US-Israel news — runs in background, never blocks user
+  const runAutoBriefing = useCallback(async () => {
+    if (briefingDoneRef.current) return;
+    briefingDoneRef.current = true;
+
+    const t0 = Date.now();
+
+    const BRIEFING_PROMPT =
+      "Daily briefing boss: (1) current weather in Gaya, Bihar, India — temperature and conditions in one sentence. (2) latest critical developments in the Iran-US-Israel conflict as of today — two sentences max. No padding, straight to the point.";
+
+    let assistantText = "";
+    let buffer = "";
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: BRIEFING_PROMPT }], selectedDb: "auto" }),
+      });
+
+      if (!res.ok || !res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          let event: { type: string; [k: string]: unknown };
+          try { event = JSON.parse(part.slice(6)); } catch { continue; }
+          if (event.type === "text") {
+            assistantText += event.text as string;
+            setBriefingText(assistantText);
+          }
+        }
+      }
+
+      // Wait for greeting to finish before speaking (greeting ~3.5s, we start at 600ms → 4.5s total)
+      const remaining = 4500 - (Date.now() - t0);
+      if (remaining > 0) await new Promise<void>((r) => window.setTimeout(r, remaining));
+
+      // Speak only if user hasn't already taken over the conversation
+      if (assistantText.trim() && !sendingRef.current) {
+        speak(assistantText, { resumeV2v: false });
+      }
+    } catch {
+      // Briefing is non-critical — silent fail
+    }
+  }, [speak]);
+
+  useEffect(() => { runBriefingRef.current = runAutoBriefing; }, [runAutoBriefing]);
 
   // Hold SPACE to talk (push-to-talk)
   useEffect(() => {
@@ -500,7 +575,10 @@ export default function Friday() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim()) void send(input.trim());
+    if (input.trim()) {
+      setBriefingText("");
+      void send(input.trim());
+    }
   };
 
   const toggleVoice = () => {
@@ -572,6 +650,16 @@ export default function Friday() {
               {DB_LABELS[db].label}
             </button>
           ))}
+        </div>
+      )}
+
+      {briefingText && (
+        <div className="briefing-card">
+          <div className="briefing-header">
+            <span className="briefing-label">DAILY BRIEFING</span>
+            <button className="briefing-close" onClick={() => setBriefingText("")}>✕</button>
+          </div>
+          <p className="briefing-body">{briefingText}</p>
         </div>
       )}
 
