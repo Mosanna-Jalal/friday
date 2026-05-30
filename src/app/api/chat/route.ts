@@ -164,6 +164,7 @@ When you learn something durable about the boss (name, role, location, preferenc
 type ChatRequestBody = {
   messages: { role: "user" | "assistant"; content: string }[];
   selectedDb?: string;
+  noPersist?: boolean; // if true, don't save to chat history
 };
 
 export async function POST(req: Request) {
@@ -388,7 +389,7 @@ export async function POST(req: Request) {
       } finally {
         controller.close();
         // Persist the new exchange to MongoDB (best-effort, non-blocking)
-        if (newUserMsg && finalAssistantText.trim()) {
+        if (!body.noPersist && newUserMsg && finalAssistantText.trim()) {
           const now = Date.now();
           appendHistory([
             { role: newUserMsg.role, content: newUserMsg.content, ts: now },

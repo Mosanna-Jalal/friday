@@ -525,6 +525,7 @@ export default function Friday() {
         body: JSON.stringify({
           messages: [{ role: "user", content: BRIEFING_PROMPT }],
           selectedDb: "auto",
+          noPersist: true,
         }),
       });
 
