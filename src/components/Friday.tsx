@@ -320,16 +320,20 @@ export default function Friday() {
         const isQuestion = /\?\s*$/.test(trimmed);
         const isExclaim = /!\s*$/.test(trimmed);
         const isShort = trimmed.length < 40;
-        const jitter = ((i * 37) % 7) / 100;
+        // Tiny jitter keeps it from sounding robotic across long responses
+        const jitter = ((i * 31) % 5) / 100;
 
+        // FRIDAY: calm, measured, slightly clipped British cadence
+        // Rate ~0.93–0.97 (slightly slower than default — deliberate, not rushed)
+        // Pitch ~1.08–1.12 (clear female, not squeaky)
         if (isQuestion) {
-          utter.rate = 1.04 + jitter; utter.pitch = 1.12;
+          utter.rate = 0.94 + jitter; utter.pitch = 1.12;
         } else if (isExclaim) {
-          utter.rate = 1.08 + jitter; utter.pitch = 1.1;
+          utter.rate = 0.97 + jitter; utter.pitch = 1.1;
         } else if (isShort) {
-          utter.rate = 1.05 + jitter; utter.pitch = 1.05 + jitter / 2;
+          utter.rate = 0.95 + jitter; utter.pitch = 1.1 + jitter;
         } else {
-          utter.rate = 1.02 + jitter; utter.pitch = 1.04 + jitter / 2;
+          utter.rate = 0.93 + jitter; utter.pitch = 1.08 + jitter;
         }
 
         if (i === 0) {
@@ -528,7 +532,7 @@ export default function Friday() {
   const testVoice = () => {
     voiceEnabledRef.current = true;
     setVoiceEnabled(true);
-    speak("Friday voice is online, MJ.", { resumeV2v: false });
+    speak("Hello, boss. All systems online. How can I help?", { resumeV2v: false });
   };
 
   return (
@@ -694,15 +698,39 @@ function scoreVoices(list: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null 
     if (!/^en/i.test(v.lang)) return -1;
     const n = v.name;
     let s = 0;
-    if (/Online \(Natural\)|Natural\)|Neural|Premium|Enhanced/i.test(n)) s += 200;
-    if (/Aria|Jenny|Emma|Ava|Sara|Michelle|Nancy|Ana|Libby|Sonia|Natasha/i.test(n)) s += 80;
-    if (/Samantha|Karen|Victoria|Tessa|Fiona|Serena|Moira|Allison/i.test(n)) s += 60;
-    if (/Google.*Female|Google US English|Google UK English Female/i.test(n)) s += 50;
-    if (/female/i.test(n)) s += 25;
-    if (/Zira|Hazel|Eva/i.test(n)) s += 15;
-    if (/David|Mark|George|Daniel/i.test(n)) s -= 20;
-    if (/^en-US/i.test(v.lang)) s += 5;
-    if (/^en-GB/i.test(v.lang)) s += 3;
+
+    // Neural/Natural/Premium voices sound far more human
+    if (/Online \(Natural\)|Natural\)|Neural|Premium|Enhanced/i.test(n)) s += 300;
+
+    // #1 pick: Microsoft Sonia — British neural, closest to Kerry Condon's FRIDAY
+    if (/Sonia/i.test(n)) s += 1000;
+    // #2 pick: Microsoft Libby — British neural, warm but precise
+    if (/Libby/i.test(n)) s += 800;
+
+    // Irish accent — closest to Kerry Condon's FRIDAY voice
+    if (/Irish|Orla|Aoife|Niamh/i.test(n)) s += 500;
+
+    // British/UK English — second-closest accent family to Irish
+    if (/^en-GB/i.test(v.lang)) s += 200;
+    if (/^en-IE/i.test(v.lang)) s += 400;
+    if (/Hazel|Kate|Mia|Nicky|Abbi|Bella|Hollie|Olivia/i.test(n)) s += 150;
+    if (/Google UK English Female/i.test(n)) s += 120;
+
+    // Australian — similar crisp clarity
+    if (/^en-AU/i.test(v.lang)) s += 80;
+    if (/Natasha|Karen|Catherine/i.test(n)) s += 60;
+
+    // Generic female markers
+    if (/female/i.test(n)) s += 30;
+
+    // US English — deprioritise (American accent, wrong for FRIDAY)
+    if (/^en-US/i.test(v.lang)) s -= 50;
+    if (/Aria|Jenny|Emma|Ava|Sara|Michelle|Nancy|Ana/i.test(n)) s -= 20;
+    if (/Samantha|Allison/i.test(n)) s -= 10;
+
+    // Male voices — exclude
+    if (/David|Mark|George|Daniel|James|Ryan|Thomas|Guy|Liam/i.test(n)) s -= 999;
+
     return s;
   };
   return [...list].sort((a, b) => score(b) - score(a))[0] ?? null;
