@@ -586,68 +586,72 @@ export default function Friday() {
       </div>
 
       <form className="input-bar" onSubmit={onSubmit}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type, or hold SPACE to talk..."
-          autoFocus
-          disabled={status === "thinking"}
-        />
-        <button type="submit" disabled={!input.trim() || status === "thinking"}>
-          SEND
-        </button>
-        <button
-          type="button"
-          className="voice-toggle"
-          onClick={toggleVoice}
-          title={voiceEnabled ? "Mute voice" : "Unmute voice"}
-        >
-          {voiceEnabled ? "VOICE ON" : "VOICE OFF"}
-        </button>
-        <button type="button" className="voice-test" onClick={testVoice}>
-          TEST VOICE
-        </button>
-        <button
-          type="button"
-          className={`voice-mode-toggle ${voiceMode ? "active" : ""}`}
-          onClick={() => void toggleVoiceMode()}
-          title="Toggle hands-free voice-to-voice mode"
-        >
-          {voiceMode ? "V2V ON" : "V2V OFF"}
-        </button>
-        <button
-          type="button"
-          className="memory-toggle"
-          onClick={() => setMemoryOpen(true)}
-          title="View and edit FRIDAY's memory"
-        >
-          MEMORY
-        </button>
-        <button
-          type="button"
-          className="feedback-toggle"
-          onClick={() => setFeedbackOpen(true)}
-          title="Feedback / Suggestions / Bug reports"
-        >
-          FEEDBACK
-        </button>
-        {voices.length > 0 && (
-          <select
-            className="voice-picker"
-            value={voiceName}
-            onChange={(e) => selectVoice(e.target.value)}
-            title="Choose FRIDAY's voice"
+        <div className="input-row-main">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type, or hold SPACE to talk..."
+            autoFocus
+            disabled={status === "thinking"}
+          />
+          <button type="submit" className="btn-send" disabled={!input.trim() || status === "thinking"}>
+            SEND
+          </button>
+        </div>
+        <div className="input-row-controls">
+          <button
+            type="button"
+            className="voice-toggle"
+            onClick={toggleVoice}
+            title={voiceEnabled ? "Mute voice" : "Unmute voice"}
           >
-            {voices
-              .filter((v) => /^en/i.test(v.lang))
-              .map((v) => (
-                <option key={v.name} value={v.name}>
-                  {v.name}
-                </option>
-              ))}
-          </select>
-        )}
+            {voiceEnabled ? "VOICE ON" : "VOICE OFF"}
+          </button>
+          <button type="button" className="voice-test" onClick={testVoice}>
+            TEST VOICE
+          </button>
+          <button
+            type="button"
+            className={`voice-mode-toggle ${voiceMode ? "active" : ""}`}
+            onClick={() => void toggleVoiceMode()}
+            title="Toggle hands-free voice-to-voice mode"
+          >
+            {voiceMode ? "V2V ON" : "V2V OFF"}
+          </button>
+          <button
+            type="button"
+            className="memory-toggle"
+            onClick={() => setMemoryOpen(true)}
+            title="View and edit FRIDAY's memory"
+          >
+            MEMORY
+          </button>
+          <button
+            type="button"
+            className="feedback-toggle"
+            onClick={() => setFeedbackOpen(true)}
+            title="Feedback / Suggestions / Bug reports"
+          >
+            FEEDBACK
+          </button>
+          {voices.length > 0 && (
+            <select
+              className="voice-picker"
+              value={voiceName}
+              onChange={(e) => selectVoice(e.target.value)}
+              title="Choose FRIDAY's voice"
+            >
+              {voices
+                .filter((v) => /^en/i.test(v.lang))
+                .map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                  </option>
+                ))}
+            </select>
+          )}
+        </div>
       </form>
 
       <MemoryPanel open={memoryOpen} onClose={() => setMemoryOpen(false)} />

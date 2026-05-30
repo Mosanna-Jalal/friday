@@ -8,7 +8,7 @@ const secret = new TextEncoder().encode(
 
 const COOKIE_NAME = "friday_session";
 
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/register"];
+const PUBLIC = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/reset-password"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

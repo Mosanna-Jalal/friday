@@ -1,4 +1,5 @@
-import { MongoClient, ObjectId, type Collection } from "mongodb";
+import { ObjectId, type Collection } from "mongodb";
+import { getFridayDb } from "./mongodb";
 
 export type Memory = { facts: string[] };
 export type ChatMessage = { role: "user" | "assistant"; content: string; ts: number; userId: string };
@@ -11,8 +12,8 @@ export type Task = {
   status: TaskStatus;
   scheduledAt?: string;
   weekdays?: string[];
-  category?: string;  // user-defined label; undefined = uncategorized
-  priority: number;   // 1–10, higher = more important
+  category?: string;
+  priority: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -26,32 +27,20 @@ export type Feedback = {
   createdAt: Date;
 };
 
-const URI = process.env.MONGODB_URI_FRIDAY!;
-
-let _client: MongoClient | null = null;
-
-async function getClient(): Promise<MongoClient> {
-  if (!_client) {
-    _client = new MongoClient(URI);
-    await _client.connect();
-  }
-  return _client;
-}
-
 async function factsCol(): Promise<Collection> {
-  return (await getClient()).db("friday").collection("memory");
+  return (await getFridayDb()).collection("memory");
 }
 
 async function historyCol(): Promise<Collection> {
-  return (await getClient()).db("friday").collection("history");
+  return (await getFridayDb()).collection("history");
 }
 
 async function tasksCol(): Promise<Collection> {
-  return (await getClient()).db("friday").collection("tasks");
+  return (await getFridayDb()).collection("tasks");
 }
 
 async function feedbackCol(): Promise<Collection> {
-  return (await getClient()).db("friday").collection("feedback");
+  return (await getFridayDb()).collection("feedback");
 }
 
 // ── Facts (per user) ────────────────────────────────────────────────────────
