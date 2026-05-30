@@ -554,20 +554,22 @@ export default function Friday() {
 
       <Terminal status={status} activeTool={activeTool} />
 
-      <div className="db-selector">
-        {(["auto", "alumni", "attendance", "fest", "internal"] as const).map((db) => (
-          <button
-            key={db}
-            type="button"
-            className={`db-pill ${selectedDb === db ? "active" : ""}`}
-            data-db={db}
-            onClick={() => setSelectedDb(db)}
-            title={DB_LABELS[db].hint}
-          >
-            {DB_LABELS[db].label}
-          </button>
-        ))}
-      </div>
+      {currentUser?.role === "admin" && (
+        <div className="db-selector">
+          {(["auto", "alumni", "attendance", "fest", "internal"] as const).map((db) => (
+            <button
+              key={db}
+              type="button"
+              className={`db-pill ${selectedDb === db ? "active" : ""}`}
+              data-db={db}
+              onClick={() => setSelectedDb(db)}
+              title={DB_LABELS[db].hint}
+            >
+              {DB_LABELS[db].label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="conversation" ref={conversationRef}>
         {messages.length === 0 && (
